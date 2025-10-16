@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>車両盗難支援のお願い – Olanda Base / Vehicle Theft Relief</title>
+
+  <!-- OGP / SEO -->
+  <meta name="description" content="Olanda Base / Team Olanda Base による車両盗難支援のお願い。合計損失 €67,650、目標 €33,825。銀行振込での支援が可能です。">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="車両盗難支援のお願い – Olanda Base">
+  <meta property="og:description" content="合計損失 €67,650、目標 €33,825。選手の挑戦を止めないためにご協力ください。">
+  <meta property="og:image" content="https://example.com/ogp.jpg">
+  <meta property="og:locale" content="ja_JP">
+  <meta property="og:site_name" content="Olanda Base">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <style>
+    :root{
+      --bg:#fafafa; --panel:#fff; --border:#e6e6e6; --text:#222; --muted:#666;
+      --brand:#0f172a; --accent:#2563eb; --success:#2b8a3e;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+      line-height:1.6}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+    header{background:linear-gradient(180deg,#f8fafc 0%,#eef2ff 100%);border-bottom:1px solid var(--border);padding:1.25rem 1rem}
+    .container{max-width:980px;margin:0 auto;padding:0 1rem}
+    .toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+    .toolbar .spacer{flex:1}
+    .btn{padding:.45rem .8rem;border:1px solid var(--border);background:#fff;border-radius:8px;cursor:pointer}
+    .btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+    .pill{display:inline-block;padding:.25rem .6rem;border-radius:999px;background:#eef6ff;border:1px solid #cfe1ff;color:#084298;font-size:.9rem}
+    h1,h2{line-height:1.25;margin:.2rem 0 .6rem}
+    .muted{color:var(--muted)}
+    main{padding:1.25rem 0}
+    .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:1rem;margin-bottom:1rem}
+    .stats{display:flex;gap:.6rem;flex-wrap:wrap;font-variant-numeric:tabular-nums}
+    .badge{display:inline-block;border:1px solid var(--border);border-radius:8px;padding:.35rem .6rem;background:#fff}
+    .progress-wrap{margin:.6rem 0}
+    .progress-bar{width:100%;height:16px;background:#f0f0f0;border:1px solid #ddd;border-radius:999px;overflow:hidden}
+    .progress{height:100%;width:0;background:var(--success)}
+    table{width:100%;border-collapse:collapse;margin:.5rem 0}
+    th,td{border:1px solid var(--border);padding:.5rem;text-align:left}
+    details summary{cursor:pointer}
+    .bank{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#f8f8f8;border:1px dashed #ccc;border-radius:8px;padding:.8rem}
+    .share{display:flex;gap:.5rem;flex-wrap:wrap}
+    .hidden{display:none}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="toolbar">
+        <div class="lang-switch">
+          <span class="muted">Language / 言語:</span>
+          <button id="btn-en" class="btn">English</button>
+          <button id="btn-ja" class="btn active">日本語</button>
+        </div>
+        <div class="spacer"></div>
+        <div class="ccy-switch">
+          <span class="muted">Currency / 通貨:</span>
+          <button id="btn-eur" class="btn active">EUR €</button>
+          <button id="btn-jpy" class="btn">JPY ￥</button>
+        </div>
+      </div>
+
+      <div class="hero">
+        <h1 class="ja">車両盗難支援のお願い – 移動手段と機材を取り戻すために</h1>
+        <h1 class="en hidden">Support Our Team – Help Us Recover After Vehicle Theft</h1>
+        <p class="ja muted">被害届提出済み（警察受付番号：<b>02800-03342-2025</b>）／ 保険申請中</p>
+        <p class="en muted hidden">Police report filed (Case No.: <b>02800-03342-2025</b>) / Insurance claim in progress</p>
+        <span class="pill ja">目標金額：<b><span data-money="goal">33825</span></b></span>
+        <span class="pill en hidden">Goal: <b><span data-money="goal">33825</span></b></span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- PROGRESS -->
+    <section class="card">
+      <h2 class="ja">進捗状況</h2>
+      <h2 class="en hidden">Progress</h2>
+      <div class="stats">
+        <div class="badge"><span class="ja">達成率：</span><span class="en hidden">Progress:</span> <b id="pct">0%</b></div>
+        <div class="badge"><span class="ja">現在の合計：</span><span class="en hidden">Raised:</span> <b><span data-money="raised">0</span></b></div>
+        <div class="badge"><span class="ja">目標：</span><span class="en hidden">Goal:</span> <b><span data-money="goal">33825</span></b></div>
+        <div class="badge"><span class="ja">支援者：</span><span class="en hidden">Supporters:</span> <b id="backers">0</b></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress" id="bar"></div></div>
+      </div>
+      <p class="muted ja">※ 合計はGoogleシート（CSV）または下記スクリプトの手動値から表示されます。</p>
+      <p class="muted en hidden">* Totals from Google Sheet CSV or manual constants below.</p>
+    </section>
+
+    <!-- STORY + NUMBERS -->
+    <section class="card">
+      <h2 class="ja">被害の概要（数値と内訳）</h2>
+      <h2 class="en hidden">Summary of Damages (Numbers)</h2>
+      <p class="ja">
+        2025年10月8日、フランス・Salaise-sur-Sanne にてチーム車両と機材が盗難に遭いました。
+        警察（BTA Roussillon）の被害届に基づく概算合計は <b>€67,650</b>（約 <b><span data-jpy-only="totjpy">0</span></b>）。
+        現在の支援目標はその<strong>50％＝<span data-money="goal">33825</span></strong>です。
+      </p>
+      <p class="en hidden">
+        On 8 Oct 2025 in Salaise-sur-Sanne, France, our team vehicle and equipment were stolen.
+        Based on the police report, the estimated total loss is <b>€67,650</b> (≈ <b><span data-jpy-only="totjpy">0</span></b>).
+        Our funding goal is set to <strong>50% = <span data-money="goal">33825</span></strong>.
+      </p>
+      <table>
+        <tr>
+          <th class="ja">項目</th><th class="ja">数量</th><th class="ja">概算額</th>
+          <th class="en hidden">Item</th><th class="en hidden">Qty</th><th class="en hidden">Est. Value</th>
+        </tr>
+        <tr><td class="ja">車両（Iveco Daily）</td><td>1</td><td>€20,000</td><td class="en hidden">Vehicle (Iveco Daily)</td><td class="en hidden">1</td><td class="en hidden">€20,000</td></tr>
+        <tr><td class="ja">レース用自転車</td><td>6</td><td>€36,000（1台あたり <span data-money="bike">6000</span>）</td><td class="en hidden">Race bikes</td><td class="en hidden">6</td><td class="en hidden">€36,000 (each <span data-money="bike">6000</span>)</td></tr>
+        <tr><td class="ja">機材・パーツ類（計器・ヘルメット・ウェア等）</td><td>-</td><td>€11,650</td><td class="en hidden">Equipment & parts</td><td class="en hidden">-</td><td class="en hidden">€11,650</td></tr>
+        <tr><th class="ja">合計</th><th></th><th>€67,650（約 <span data-jpy-only="totjpy">0</span>）</th>
+            <th class="en hidden">Total</th><th></th><th class="en hidden">€67,650 (≈ <span data-jpy-only="totjpy">0</span>)</th></tr>
+      </table>
+      <p class="muted ja">参考：自転車は<strong>6台</strong>、1台あたり概算 <span data-money="bike">6000</span>（約 <span data-money="bikejpy">1000000</span>）。</p>
+      <p class="muted en hidden">Note: <strong>6 bikes</strong>, each about <span data-money="bike">6000</span> (~ <span data-money="bikejpy">1000000</span>).</p>
+    </section>
+
+    <!-- ABOUT OLANDA BASE -->
+    <section class="card">
+      <h2 class="ja">Olanda Base について</h2>
+      <h2 class="en hidden">About Olanda Base</h2>
+      <p class="ja">
+        <b>Olanda Base / Team Olanda Base</b> は、オランダを拠点に日本とヨーロッパをつなぐ自転車競技コミュニティです。
+        シクロクロス、グラベル、XCM、パラサイクリングの選手を支援し、欧州遠征の受け皿として選手の成長を後押ししています。
+        活動の詳細は公式ページをご覧ください：
+        <a href="https://sites.google.com/view/olandabase/page" target="_blank" rel="noopener">Olanda Base 公式サイト</a>
+      </p>
+      <p class="en hidden">
+        <b>Olanda Base / Team Olanda Base</b> is a Netherlands-based cycling community bridging Japan and Europe across cyclocross, gravel, XCM, and para-cycling.
+        We support athletes competing in European races and provide logistics and development pathways.
+        Learn more: <a href="https://sites.google.com/view/olandabase/page" target="_blank" rel="noopener">Official Site</a>
+      </p>
+    </section>
+
+    <!-- DONATIONS: BANK ONLY -->
+    <section class="card">
+      <h2 class="ja">寄付の方法（銀行振込のみ）</h2>
+      <h2 class="en hidden">How to Donate (Bank Transfer only)</h2>
+      <div class="bank">
+        <div class="ja">
+          <div><b>オランダ（ING）</b></div>
+          <div><b>IBAN:</b> NL06 INGB 0709 6927 49</div>
+          <div><b>受取名義:</b> Olanda Base</div>
+          <div><b>用途:</b> Vehicle Theft Relief</div>
+          <hr>
+          <div><b>日本の口座（SMBC）</b></div>
+          <div><b>銀行名:</b> 三井住友銀行</div>
+          <div><b>支店名:</b> 356</div>
+          <div><b>種別:</b> 普通</div>
+          <div><b>口座番号:</b> 4742084</div>
+          <div><b>名義:</b> カジテツキ</div>
+        </div>
+        <div class="en hidden">
+          <div><b>Netherlands (ING)</b></div>
+          <div><b>IBAN:</b> NL06 INGB 0709 6927 49</div>
+          <div><b>Account name:</b> Olanda Base</div>
+          <div><b>Reference:</b> Vehicle Theft Relief</div>
+          <hr>
+          <div><b>Japan (SMBC)</b></div>
+          <div><b>Bank:</b> Sumitomo Mitsui Banking Corporation</div>
+          <div><b>Branch:</b> 356</div>
+          <div><b>Type:</b> Ordinary</div>
+          <div><b>Account No.:</b> 4742084</div>
+          <div><b>Account name:</b> カジテツキ</div>
+        </div>
+      </div>
+      <p class="muted ja">※ 送金の際は「Vehicle Theft Relief」と明記いただけると助かります。</p>
+      <p class="muted en hidden">* Please include "Vehicle Theft Relief" in the payment reference.</p>
+    </section>
+
+    <!-- TRANSPARENCY -->
+    <section class="card">
+      <h2 class="ja">透明性と会計公開</h2>
+      <h2 class="en hidden">Transparency</h2>
+      <p class="ja">収支は本ページで公開します。寄付は税務の対象になる場合があります。GDPRに基づき個人情報を適切に管理します。</p>
+      <p class="en hidden">We will publish a simple ledger here. Donations may be taxable. We comply with GDPR.</p>
+      <details>
+        <summary class="ja">寄付記録（CSV連携の設置手順）</summary>
+        <summary class="en hidden">Donation log (how to connect CSV)</summary>
+        <div class="muted ja">
+          公開設定のGoogleスプレッドシートで、列名を <code>amount,currency</code> として公開CSVのURLを
+          <code>GOOGLE_SHEET_CSV_URL</code> に設定してください。
+        </div>
+        <div class="muted en hidden">
+          Use a public Google Sheet with columns <code>amount,currency</code> and set its CSV URL to <code>GOOGLE_SHEET_CSV_URL</code>.
+        </div>
+      </details>
+    </section>
+
+    <!-- SHARE -->
+    <section class="card">
+      <h2 class="ja">共有して応援</h2>
+      <h2 class="en hidden">Share</h2>
+      <div class="share">
+        <a class="btn" id="share-x" href="#" target="_blank" rel="noopener">Share on X</a>
+        <a class="btn" id="share-fb" href="#" target="_blank" rel="noopener">Share on Facebook</a>
+        <a class="btn" id="share-ln" href="#" target="_blank" rel="noopener">Share on LinkedIn</a>
+      </div>
+      <p class="muted ja">リンクをコピーしてSNSでの拡散にご協力ください。</p>
+      <p class="muted en hidden">Please share the link and help us spread the word.</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p class="muted">&copy; <span id="year"></span> Olanda Base / Team Olanda Base</p>
+    </div>
+  </footer>
+
+  <script>
+    // ====== CONFIG ======
+    const GOAL_EUR = 33825;
+    const RAISED_EUR_MANUAL = 0;
+    const BACKERS_MANUAL = 0;
+    const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1-1KCbaKdikPAZHGne9EOaeolRPuAxkc7z8uLJDyrkzQ/gviz/tq?tqx=out:csv";
+    const FIXED_JPY_TO_EUR = 0; // set to e.g. 0.006 to convert JPY rows
+    const EUR_TO_JPY = 165.0;
+
+    const MONEY_MAP = {
+      goal: GOAL_EUR,
+      raised: RAISED_EUR_MANUAL,
+      bike: 6000,
+      bikejpy: 6000 * EUR_TO_JPY,
+      biketotal: 6000 * 6,
+    };
+    const TOTAL_LOSS_EUR = 67650;
+
+    const btnEn = document.getElementById('btn-en');
+    const btnJa = document.getElementById('btn-ja');
+    const btnEur = document.getElementById('btn-eur');
+    const btnJpy = document.getElementById('btn-jpy');
+
+    const setLang = (lang) => {
+      document.querySelectorAll('.en').forEach(el => el.classList.toggle('hidden', lang !== 'en'));
+      document.querySelectorAll('.ja').forEach(el => el.classList.toggle('hidden', lang !== 'ja'));
+      btnEn.classList.toggle('active', lang === 'en');
+      btnJa.classList.toggle('active', lang === 'ja');
+      document.documentElement.lang = (lang === 'en' ? 'en' : 'ja');
+    };
+    btnEn.addEventListener('click', () => setLang('en'));
+    btnJa.addEventListener('click', () => setLang('ja'));
+    setLang('ja');
+
+    let currentCcy = 'EUR';
+    function fmt(val, ccy) {
+      if (ccy === 'JPY') return '¥' + Math.round(val * EUR_TO_JPY).toLocaleString('ja-JP');
+      return '€' + Math.round(val).toLocaleString('en-US');
+    }
+    function renderMoney() {
+      document.querySelectorAll('[data-money="goal"]').forEach(el => el.textContent = fmt(MONEY_MAP.goal, currentCcy));
+      document.querySelectorAll('[data-money="raised"]').forEach(el => el.textContent = fmt(MONEY_MAP.raised, currentCcy));
+      document.querySelectorAll('[data-money="bike"]').forEach(el => el.textContent = fmt(MONEY_MAP.bike, currentCcy));
+      document.querySelectorAll('[data-money="bikejpy"]').forEach(el => el.textContent = '¥' + Math.round(6000 * EUR_TO_JPY).toLocaleString('ja-JP'));
+      document.querySelectorAll('[data-jpy-only="totjpy"]').forEach(el => el.textContent = '¥' + Math.round(TOTAL_LOSS_EUR * EUR_TO_JPY).toLocaleString('ja-JP'));
+      const raised = MONEY_MAP.raised;
+      const goal = MONEY_MAP.goal;
+      const pct = Math.min(100, Math.round((raised / goal) * 100)) || 0;
+      document.getElementById('pct').textContent = pct + '%';
+      document.getElementById('backers').textContent = (BACKERS_MANUAL || 0).toString();
+      document.getElementById('bar').style.width = pct + '%';
+    }
+    function setCcy(ccy) {
+      currentCcy = ccy;
+      btnEur.classList.toggle('active', ccy === 'EUR');
+      btnJpy.classList.toggle('active', ccy === 'JPY');
+      renderMoney();
+    }
+    btnEur.addEventListener('click', () => setCcy('EUR'));
+    btnJpy.addEventListener('click', () => setCcy('JPY'));
+    setCcy('EUR');
+
+    // Load totals from Google Sheet CSV (optional)
+    async function loadFromSheet() {
+      if (!GOOGLE_SHEET_CSV_URL) throw new Error('no sheet');
+      const res = await fetch(GOOGLE_SHEET_CSV_URL);
+      const csv = await res.text();
+      const lines = csv.trim().split(/\r?\n/);
+      const header = lines.shift().split(',');
+      const idxAmount = header.indexOf('amount');
+      const idxCurrency = header.indexOf('currency');
+      let eurSum = 0; let count = 0;
+      for (const line of lines) {
+        const cols = line.split(',');
+        const amt = parseFloat(cols[idxAmount] || '0');
+        const cur = (cols[idxCurrency] || '').trim().toUpperCase();
+        if (!isNaN(amt)) {
+          if (cur === 'EUR') { eurSum += amt; count += 1; }
+          else if (cur === 'JPY' && FIXED_JPY_TO_EUR > 0) { eurSum += amt * FIXED_JPY_TO_EUR; count += 1; }
+        }
+      }
+      MONEY_MAP.raised = eurSum;
+      document.getElementById('backers').textContent = count.toString();
+      renderMoney();
+    }
+    (async () => {
+      try { await loadFromSheet(); } catch (e) { /* manual mode */ }
+      document.getElementById('year').textContent = new Date().getFullYear();
+      const shareUrl = window.location.href;
+      document.getElementById('share-x').href  = "https://twitter.com/intent/tweet?text=" + encodeURIComponent("Olanda Base 車両盗難支援のお願い / Vehicle Theft Relief") + "&url=" + encodeURIComponent(shareUrl);
+      document.getElementById('share-fb').href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(shareUrl);
+      document.getElementById('share-ln').href = "https://www.linkedin.com/sharing/share-offsite/?url=" + encodeURIComponent(shareUrl);
+      renderMoney();
+    })();
+  </script>
+</body>
+</html>
