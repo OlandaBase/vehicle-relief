@@ -220,15 +220,15 @@
   
 
   <script>
-/************** CONFIG **************/
+/* ===== CONFIG ===== */
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1-1KCbaKdikPAZHGne9EOaeolRPuAxkc7z8uLJDyrkzQ/export?format=csv&gid=0";
-const EUR_TO_JPY = 165;
-const GOAL_FALLBACK = 33825;
+const EUR_TO_JPY = 165;       // 表示用レート
+const GOAL_FALLBACK = 33825;  // data-money="goal" が読めない時の目標額
 
-/************** Helpers **************/
+/* ===== Helpers ===== */
 const $  = s=>document.querySelector(s);
 const $$ = s=>Array.from(document.querySelectorAll(s));
-const toHalfWidthDigits = s => s.replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0));
+const toHalfWidthDigits = s => s.replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0)-0xFEE0));
 const fmtEUR = n => "€"+Math.round(n).toLocaleString("en-US");
 const fmtJPY = n => "¥"+Math.round(n).toLocaleString("ja-JP");
 let currentCcy = "EUR";
@@ -240,6 +240,7 @@ function goalEUR(){
   return v>0 ? v : GOAL_FALLBACK;
 }
 
+/* ===== Static numbers render ===== */
 function renderStatic(){
   const g = goalEUR();
   $$('[data-money="goal"]').forEach(el=>el.textContent = disp(g));
@@ -248,6 +249,7 @@ function renderStatic(){
   $$('[data-jpy-only="totjpy"]').forEach(el=>el.textContent = fmtJPY(67650*EUR_TO_JPY));
 }
 
+/* ===== Progress ===== */
 let lastEUR=0,lastBackers=0;
 function renderProgress(eur, backers){
   lastEUR = eur; lastBackers = backers;
@@ -260,99 +262,96 @@ function renderProgress(eur, backers){
   $("#backers") && ($("#backers").textContent = String(backers));
 }
 
-/************** Diagnoser UI **************/
-function diagBox(){
-  let box = $("#diag");
-  if(!box){
-    box = document.createElement("div");
-    box.id="diag";
-    box.style.cssText="margin:.6rem 0;padding:.6rem;border:1px dashed #bbb;border-radius:8px;background:#fff;font-family:ui-monospace,monospace;white-space:pre-wrap;max-height:280px;overflow:auto";
-    const host = document.querySelector(".progress-wrap")?.parentNode || document.body;
-    host.appendChild(box);
-  }
-  return box;
-}
-function logDiag(lines){
-  const b = diagBox();
-  b.textContent = lines.join("\n");
-}
-
-/************** Robust CSV parse **************/
-// delimiter 自動判定（, / ; / \t）
+/* ===== CSV parser (quotes-aware, delimiter auto) ===== */
 function sniffDelimiter(text){
   const sample = text.split(/\r?\n/).slice(0,3).join("\n");
   const counts = { ",":(sample.match(/,/g)||[]).length, ";":(sample.match(/;/g)||[]).length, "\t":(sample.match(/\t/g)||[]).length };
   return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ",";
 }
-function parseCSV(text){
-  text = toHalfWidthDigits(text.replace(/^\uFEFF/, "")); // BOM & 全角→半角
+function parseCSVQuoted(text){
+  text = toHalfWidthDigits(text.replace(/^\uFEFF/, "")); // BOM除去 & 全角→半角数字
   const delim = sniffDelimiter(text);
-  const rows = text.trim().split(/\r?\n/).map(r=>r.split(delim));
-  return { rows, delim };
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+
+  for(let i=0;i<text.length;i++){
+    const ch = text[i], next = text[i+1];
+    if(inQuotes){
+      if(ch === '"' && next === '"'){ field += '"'; i++; } // エスケープされたダブルクオート
+      else if(ch === '"'){ inQuotes = false; }
+      else { field += ch; }
+    }else{
+      if(ch === '"'){ inQuotes = true; }
+      else if(ch === '\r'){ /* skip */ }
+      else if(ch === '\n'){
+        row.push(field); rows.push(row); row=[]; field="";
+      }else if(ch === delim){
+        row.push(field); field="";
+      }else{
+        field += ch;
+      }
+    }
+  }
+  // 最終フィールド
+  row.push(field); rows.push(row);
+  return rows.filter(r => !(r.length===1 && r[0].trim()===""));
 }
 
-/************** Fetch & Sum (JPY auto-detect) **************/
+/* ===== Fetch & Sum (JPY auto-detect) ===== */
 async function fetchAndSum(){
-  const notes = [];
-  notes.push("CSV URL: "+SHEET_URL);
+  if(!SHEET_URL){ renderProgress(0,0); return; }
   try{
     const res = await fetch(SHEET_URL, {cache:"no-store"});
-    notes.push("HTTP: "+res.status);
-    if(!res.ok){ renderProgress(0,0); logDiag(notes.concat(["❌ アクセス不可。公開設定/URL形式を確認してください（pub?output=csv か export?format=csv）。"])); return; }
-    let text = await res.text();
-    // デバッグ：先頭行を表示
-    const preview = text.split(/\r?\n/).slice(0,6).join("\n");
-    notes.push("---- CSV preview (first lines) ----\n"+preview+"\n---- end preview ----");
+    if(!res.ok){ renderProgress(0,0); return; }
+    const text = await res.text();
+    const rows = parseCSVQuoted(text);
+    if(rows.length<=1){ renderProgress(0,0); return; }
 
-    const {rows, delim} = parseCSV(text);
-    notes.push("Delimiter detected: " + (delim==="\t" ? "\\t" : delim));
-    if(rows.length<=1){ renderProgress(0,0); logDiag(notes.concat(["❌ データ行がありません（1行目はヘッダー、2行目以降にデータ）。"])); return; }
+    const header = rows[0].map(h => (h||"").trim().toLowerCase());
+    const ai = header.indexOf("amount");    // 金額
+    const ci = header.indexOf("currency");  // 通貨（なくてもOK）
+    const si = header.indexOf("status");    // ステータス（任意）
 
-    const header = rows[0].map(h=> (h||"").trim().toLowerCase());
-    const ai = header.indexOf("amount");
-    const ci = header.indexOf("currency");
-    notes.push("Header: ["+header.join(" | ")+"]");
-    notes.push("amount index="+ai+", currency index="+ci+"（-1なら列無し）");
+    let eurSum = 0, count = 0;
 
-    let eurSum=0, count=0;
     for(let i=1;i<rows.length;i++){
       const r = rows[i];
       if(!r || r.length===0) continue;
-      // 金額セル：amount列があればそこ、無ければ0列目
-      const rawCell = (ai>=0 ? r[ai] : r[0]) || "";
-      // 通貨セル：currency列があればそこ、無ければ推測
-      let cur = (ci>=0 ? (r[ci]||"") : "").trim().toUpperCase();
 
-      // 金額セルに含まれる記号から通貨推測（¥, ￥, JPY）
-      const rawCellFW = toHalfWidthDigits(rawCell);
-      if(!cur){
-        if(/[¥￥]|JPY/i.test(rawCellFW)) cur="JPY"; else cur="EUR";
+      // ステータスがある場合、OK/PAID/CONFIRMEDのみ集計（なければ全件）
+      if(si >= 0){
+        const st = (r[si]||"").trim().toUpperCase();
+        if(st && !["OK","PAID","CONFIRMED","CONFIRM"].includes(st)) continue;
       }
 
-      // 数値だけ抜き出し（カンマ・全角￥・欧州小数点もざっくり吸収）
-      const numeric = rawCellFW.replace(/[^0-9.\-]/g,"");
-      const amt = parseFloat(numeric);
+      // 金額セル（amount列が無ければ0列目）
+      const rawCell = (ai >= 0 ? r[ai] : r[0]) || "";
+      // 通貨セル（無ければ金額から推測）
+      let cur = (ci >= 0 ? (r[ci]||"") : "").trim().toUpperCase();
+
+      if(!cur){
+        if(/[¥￥]|JPY/i.test(rawCell)) cur = "JPY";
+        else cur = "EUR";
+      }
+
+      // 数値抽出（カンマ・通貨記号・全角￥など除去）
+      const amt = parseFloat(String(rawCell).replace(/[^\d.\-]/g,""));
       if(isNaN(amt) || amt<=0) continue;
 
-      // 換算
-      if(cur==="EUR") eurSum += amt;
-      else if(cur==="JPY") eurSum += amt / EUR_TO_JPY;
+      if(cur === "EUR") eurSum += amt;
+      else if(cur === "JPY") eurSum += amt / EUR_TO_JPY;
       else continue;
 
       count++;
     }
 
     renderProgress(eurSum, count);
-    notes.push(`✅ OK: ${count} 件 / 合計 ${fmtEUR(eurSum)}  （表示は通貨切替に連動）`);
-    logDiag(notes);
-
   }catch(e){
     renderProgress(0,0);
-    logDiag(notes.concat(["❌ 取得失敗："+(e && e.message ? e.message : e)]));
   }
 }
 
-/************** Lang / Currency / Share **************/
+/* ===== Lang / Currency ===== */
 function setLang(lang){
   $$(".en").forEach(el=>el.classList.toggle("hidden", lang!=="en"));
   $$(".ja").forEach(el=>el.classList.toggle("hidden", lang!=="ja"));
@@ -367,6 +366,12 @@ function setCcy(ccy){
   renderStatic();
   renderProgress(lastEUR,lastBackers);
 }
+$("#btn-en")?.addEventListener("click", ()=> setLang("en"));
+$("#btn-ja")?.addEventListener("click", ()=> setLang("ja"));
+$("#btn-eur")?.addEventListener("click", ()=> setCcy("EUR"));
+$("#btn-jpy")?.addEventListener("click", ()=> setCcy("JPY"));
+
+/* ===== Share links (存在する時だけ設定) ===== */
 function setShare(){
   const url = window.location.href;
   $("#share-x")  && ($("#share-x").href  = "https://twitter.com/intent/tweet?url="+encodeURIComponent(url));
@@ -375,15 +380,14 @@ function setShare(){
   $("#share-ig") && ($("#share-ig").href = "https://www.instagram.com/?url="+encodeURIComponent(url));
 }
 
-/************** Init **************/
+/* ===== Init ===== */
 (async function init(){
   setLang("ja");
   setCcy("EUR");
   renderStatic();
-  await fetchAndSum();   // ←診断つき
+  await fetchAndSum();
   setShare();
   const y = document.getElementById("year"); if(y) y.textContent = new Date().getFullYear();
-  // 10分ごとに再取得
   setInterval(fetchAndSum, 10*60*1000);
 })();
 </script>
