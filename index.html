@@ -218,161 +218,172 @@
     </div>
   </footer>
   
-  
-<script>
-  /************** CONFIG（必要に応じて変更） **************/
-  // GoogleシートのCSV公開URL（pub?output=csv か export?format=csv&gid=...）
-  const SHEET_URL = "https://docs.google.com/spreadsheets/d/1-1KCbaKdikPAZHGne9EOaeolRPuAxkc7z8uLJDyrkzQ/export?format=csv&gid=0";
-  // 表示用の為替レート（JPY→EUR換算で使用）
-  const EUR_TO_JPY = 165;
-  // 目標額は data-money="goal" の最初の要素から取得（無い場合のフォールバック）
-  const GOAL_EUR_FALLBACK = 33825;
 
-  /************** 便利関数 **************/
-  const $  = (s)=>document.querySelector(s);
-  const $$ = (s)=>Array.from(document.querySelectorAll(s));
-  const asNum = (s)=>Number(String(s).replace(/[^\d.\-]/g,"") || 0);
-  const fmtEUR = (n)=>"€"+Math.round(n).toLocaleString("en-US");
-  const fmtJPY = (n)=>"¥"+Math.round(n).toLocaleString("ja-JP");
-  let currentCcy = "EUR";
-  const disp = (eur)=> currentCcy==="EUR" ? fmtEUR(eur) : fmtJPY(eur*EUR_TO_JPY);
+  <script>
+/************** CONFIG **************/
+const SHEET_URL = "https://docs.google.com/spreadsheets/d/1-1KCbaKdikPAZHGne9EOaeolRPuAxkc7z8uLJDyrkzQ/export?format=csv&gid=0";
+const EUR_TO_JPY = 165;
+const GOAL_FALLBACK = 33825;
 
-  function goalEUR(){
-    const el = document.querySelector('[data-money="goal"]');
-    const v  = el ? asNum(el.textContent) : GOAL_EUR_FALLBACK;
-    return v>0 ? v : GOAL_EUR_FALLBACK;
+/************** Helpers **************/
+const $  = s=>document.querySelector(s);
+const $$ = s=>Array.from(document.querySelectorAll(s));
+const toHalfWidthDigits = s => s.replace(/[０-９]/g, d => String.fromCharCode(d.charCodeAt(0) - 0xFEE0));
+const fmtEUR = n => "€"+Math.round(n).toLocaleString("en-US");
+const fmtJPY = n => "¥"+Math.round(n).toLocaleString("ja-JP");
+let currentCcy = "EUR";
+const disp = eur => currentCcy==="EUR" ? fmtEUR(eur) : fmtJPY(eur*EUR_TO_JPY);
+
+function goalEUR(){
+  const el = document.querySelector('[data-money="goal"]');
+  const v  = el ? Number((el.textContent||"").replace(/[^\d.\-]/g,"")) : 0;
+  return v>0 ? v : GOAL_FALLBACK;
+}
+
+function renderStatic(){
+  const g = goalEUR();
+  $$('[data-money="goal"]').forEach(el=>el.textContent = disp(g));
+  $$('[data-money="bike"]').forEach(el=>el.textContent = disp(6000));
+  $$('[data-money="bikejpy"]').forEach(el=>el.textContent = fmtJPY(6000*EUR_TO_JPY));
+  $$('[data-jpy-only="totjpy"]').forEach(el=>el.textContent = fmtJPY(67650*EUR_TO_JPY));
+}
+
+let lastEUR=0,lastBackers=0;
+function renderProgress(eur, backers){
+  lastEUR = eur; lastBackers = backers;
+  const g = goalEUR();
+  const raisedEl = document.querySelector('[data-money="raised"]');
+  if(raisedEl) raisedEl.textContent = disp(eur);
+  const pct = Math.min(100, Math.round((eur/g)*100)) || 0;
+  $("#pct") && ($("#pct").textContent = pct+"%");
+  $("#bar") && ($("#bar").style.width = pct+"%");
+  $("#backers") && ($("#backers").textContent = String(backers));
+}
+
+/************** Diagnoser UI **************/
+function diagBox(){
+  let box = $("#diag");
+  if(!box){
+    box = document.createElement("div");
+    box.id="diag";
+    box.style.cssText="margin:.6rem 0;padding:.6rem;border:1px dashed #bbb;border-radius:8px;background:#fff;font-family:ui-monospace,monospace;white-space:pre-wrap;max-height:280px;overflow:auto";
+    const host = document.querySelector(".progress-wrap")?.parentNode || document.body;
+    host.appendChild(box);
   }
+  return box;
+}
+function logDiag(lines){
+  const b = diagBox();
+  b.textContent = lines.join("\n");
+}
 
-  // 進捗の描画
-  let lastEUR = 0, lastBackers = 0;
-  function renderProgress(eur, backers){
-    lastEUR = eur; lastBackers = backers;
-    const g = goalEUR();
-    const raisedEl = document.querySelector('[data-money="raised"]');
-    if(raisedEl) raisedEl.textContent = disp(eur);
-    const pct = Math.min(100, Math.round((eur/g)*100)) || 0;
-    $("#pct")  && ($("#pct").textContent = pct + "%");
-    $("#bar")  && ($("#bar").style.width = pct + "%");
-    $("#backers") && ($("#backers").textContent = String(backers));
-  }
+/************** Robust CSV parse **************/
+// delimiter 自動判定（, / ; / \t）
+function sniffDelimiter(text){
+  const sample = text.split(/\r?\n/).slice(0,3).join("\n");
+  const counts = { ",":(sample.match(/,/g)||[]).length, ";":(sample.match(/;/g)||[]).length, "\t":(sample.match(/\t/g)||[]).length };
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] || ",";
+}
+function parseCSV(text){
+  text = toHalfWidthDigits(text.replace(/^\uFEFF/, "")); // BOM & 全角→半角
+  const delim = sniffDelimiter(text);
+  const rows = text.trim().split(/\r?\n/).map(r=>r.split(delim));
+  return { rows, delim };
+}
 
-  // 固定金額の初期描画（表記だけ反映）
-  function renderStatic(){
-    const g = goalEUR();
-    $$('[data-money="goal"]').forEach(el=> el.textContent = disp(g));
-    $$('[data-money="bike"]').forEach(el=> el.textContent = disp(6000));
-    $$('[data-money="bikejpy"]').forEach(el=> el.textContent = fmtJPY(6000*EUR_TO_JPY));
-    $$('[data-jpy-only="totjpy"]').forEach(el=> el.textContent = fmtJPY(67650*EUR_TO_JPY));
-  }
+/************** Fetch & Sum (JPY auto-detect) **************/
+async function fetchAndSum(){
+  const notes = [];
+  notes.push("CSV URL: "+SHEET_URL);
+  try{
+    const res = await fetch(SHEET_URL, {cache:"no-store"});
+    notes.push("HTTP: "+res.status);
+    if(!res.ok){ renderProgress(0,0); logDiag(notes.concat(["❌ アクセス不可。公開設定/URL形式を確認してください（pub?output=csv か export?format=csv）。"])); return; }
+    let text = await res.text();
+    // デバッグ：先頭行を表示
+    const preview = text.split(/\r?\n/).slice(0,6).join("\n");
+    notes.push("---- CSV preview (first lines) ----\n"+preview+"\n---- end preview ----");
 
-  // 見えるエラーメモ
-  function showNote(msg){
-    let n = document.getElementById("loadnote");
-    if(!n){
-      n = document.createElement("p");
-      n.id = "loadnote";
-      n.className = "muted";
-      const host = document.querySelector(".progress-wrap")?.parentNode || document.body;
-      host.appendChild(n);
-    }
-    n.textContent = msg;
-  }
+    const {rows, delim} = parseCSV(text);
+    notes.push("Delimiter detected: " + (delim==="\t" ? "\\t" : delim));
+    if(rows.length<=1){ renderProgress(0,0); logDiag(notes.concat(["❌ データ行がありません（1行目はヘッダー、2行目以降にデータ）。"])); return; }
 
-  /************** CSV 読み込み（JPY自動判定対応） **************/
-  async function fetchCSV(){
-    if(!SHEET_URL){ renderProgress(0,0); showNote("シートURLが未設定です。"); return; }
-    try{
-      const res  = await fetch(SHEET_URL, {cache:"no-store"});
-      if(!res.ok){ renderProgress(0,0); showNote("CSVにアクセスできません（公開設定を確認）。HTTP "+res.status); return; }
+    const header = rows[0].map(h=> (h||"").trim().toLowerCase());
+    const ai = header.indexOf("amount");
+    const ci = header.indexOf("currency");
+    notes.push("Header: ["+header.join(" | ")+"]");
+    notes.push("amount index="+ai+", currency index="+ci+"（-1なら列無し）");
 
-      const text  = await res.text();
-      const lines = text.trim().split(/\r?\n/);
-      if(lines.length <= 1){ renderProgress(0,0); showNote("CSVにデータがありません。"); return; }
+    let eurSum=0, count=0;
+    for(let i=1;i<rows.length;i++){
+      const r = rows[i];
+      if(!r || r.length===0) continue;
+      // 金額セル：amount列があればそこ、無ければ0列目
+      const rawCell = (ai>=0 ? r[ai] : r[0]) || "";
+      // 通貨セル：currency列があればそこ、無ければ推測
+      let cur = (ci>=0 ? (r[ci]||"") : "").trim().toUpperCase();
 
-      // ヘッダー（無くても動くように）
-      const header = lines.shift().split(",");
-      const idx = {}; header.forEach((h,i)=> idx[h.trim().toLowerCase()] = i);
-      const ai = idx["amount"];     // 金額列（無ければ0列目）
-      const ci = idx["currency"];   // 通貨列（無くてもOK）
-
-      let eurSum = 0, count = 0;
-
-      for(const line of lines){
-        if(!line) continue;
-        const cols = line.split(",");
-
-        // 金額セル文字列（列が無い時はA列扱い）
-        const rawCell = (ai != null ? cols[ai] : cols[0]) || "";
-        // 通貨セル（あれば使う）
-        let cur = (ci != null ? (cols[ci] || "") : "").trim().toUpperCase();
-
-        // 金額セルの文字から通貨を推測（¥ や JPY を含めばJPY）
-        if(!cur){
-          if(/¥|JPY/i.test(rawCell)) cur = "JPY";
-          else cur = "EUR"; // 既定はEUR
-        }
-
-        // 数値だけ取り出す（カンマ・記号除去）
-        const amt = parseFloat(String(rawCell).replace(/[^\d.\-]/g,""));
-        if(isNaN(amt) || amt <= 0) continue;
-
-        // 換算
-        if(cur === "EUR") eurSum += amt;
-        else if(cur === "JPY") eurSum += amt / EUR_TO_JPY;
-        else continue; // 他通貨は除外
-
-        count += 1;
+      // 金額セルに含まれる記号から通貨推測（¥, ￥, JPY）
+      const rawCellFW = toHalfWidthDigits(rawCell);
+      if(!cur){
+        if(/[¥￥]|JPY/i.test(rawCellFW)) cur="JPY"; else cur="EUR";
       }
 
-      renderProgress(eurSum, count);
-      showNote(`読み込みOK：${count}件、合計 ${fmtEUR(eurSum)}（JPY自動換算含む）`);
-    }catch(err){
-      console.error(err);
-      renderProgress(0,0);
-      showNote("CSVの読み込みに失敗しました（URLと公開設定を確認）。");
+      // 数値だけ抜き出し（カンマ・全角￥・欧州小数点もざっくり吸収）
+      const numeric = rawCellFW.replace(/[^0-9.\-]/g,"");
+      const amt = parseFloat(numeric);
+      if(isNaN(amt) || amt<=0) continue;
+
+      // 換算
+      if(cur==="EUR") eurSum += amt;
+      else if(cur==="JPY") eurSum += amt / EUR_TO_JPY;
+      else continue;
+
+      count++;
     }
-  }
 
-  /************** 言語・通貨切替 **************/
-  function setLang(lang){
-    $$(".en").forEach(el=> el.classList.toggle("hidden", lang!=="en"));
-    $$(".ja").forEach(el=> el.classList.toggle("hidden", lang!=="ja"));
-    $("#btn-en")?.classList.toggle("active", lang==="en");
-    $("#btn-ja")?.classList.toggle("active", lang==="ja");
-    document.documentElement.lang = (lang==="en" ? "en" : "ja");
-  }
-  $("#btn-en")?.addEventListener("click", ()=> setLang("en"));
-  $("#btn-ja")?.addEventListener("click", ()=> setLang("ja"));
+    renderProgress(eurSum, count);
+    notes.push(`✅ OK: ${count} 件 / 合計 ${fmtEUR(eurSum)}  （表示は通貨切替に連動）`);
+    logDiag(notes);
 
-  function setCcy(ccy){
-    currentCcy = ccy;
-    $("#btn-eur")?.classList.toggle("active", ccy==="EUR");
-    $("#btn-jpy")?.classList.toggle("active", ccy==="JPY");
-    renderStatic();
-    renderProgress(lastEUR, lastBackers);
+  }catch(e){
+    renderProgress(0,0);
+    logDiag(notes.concat(["❌ 取得失敗："+(e && e.message ? e.message : e)]));
   }
-  $("#btn-eur")?.addEventListener("click", ()=> setCcy("EUR"));
-  $("#btn-jpy")?.addEventListener("click", ()=> setCcy("JPY"));
+}
 
-  /************** 共有リンク（存在する場合のみ設定） **************/
-  function setShare(){
-    const url = window.location.href;
-    $("#share-x")  && ($("#share-x").href  = "https://twitter.com/intent/tweet?url="+encodeURIComponent(url));
-    $("#share-fb") && ($("#share-fb").href = "https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(url));
-    $("#share-ln") && ($("#share-ln").href = "https://www.linkedin.com/sharing/share-offsite/?url="+encodeURIComponent(url));
-    $("#share-ig") && ($("#share-ig").href = "https://www.instagram.com/?url="+encodeURIComponent(url));
-  }
+/************** Lang / Currency / Share **************/
+function setLang(lang){
+  $$(".en").forEach(el=>el.classList.toggle("hidden", lang!=="en"));
+  $$(".ja").forEach(el=>el.classList.toggle("hidden", lang!=="ja"));
+  $("#btn-en")?.classList.toggle("active", lang==="en");
+  $("#btn-ja")?.classList.toggle("active", lang==="ja");
+  document.documentElement.lang = (lang==="en" ? "en" : "ja");
+}
+function setCcy(ccy){
+  currentCcy = ccy;
+  $("#btn-eur")?.classList.toggle("active", ccy==="EUR");
+  $("#btn-jpy")?.classList.toggle("active", ccy==="JPY");
+  renderStatic();
+  renderProgress(lastEUR,lastBackers);
+}
+function setShare(){
+  const url = window.location.href;
+  $("#share-x")  && ($("#share-x").href  = "https://twitter.com/intent/tweet?url="+encodeURIComponent(url));
+  $("#share-fb") && ($("#share-fb").href = "https://www.facebook.com/sharer/sharer.php?u="+encodeURIComponent(url));
+  $("#share-ln") && ($("#share-ln").href = "https://www.linkedin.com/sharing/share-offsite/?url="+encodeURIComponent(url));
+  $("#share-ig") && ($("#share-ig").href = "https://www.instagram.com/?url="+encodeURIComponent(url));
+}
 
-  /************** 初期化 **************/
-  (async function init(){
-    setLang("ja");
-    setCcy("EUR");
-    renderStatic();
-    await fetchCSV();          // CSV読込 → 進捗反映
-    setShare();
-    const y = document.getElementById("year");
-    if(y) y.textContent = new Date().getFullYear();
-    // 10分ごとに再取得
-    setInterval(fetchCSV, 10*60*1000);
-  })();
+/************** Init **************/
+(async function init(){
+  setLang("ja");
+  setCcy("EUR");
+  renderStatic();
+  await fetchAndSum();   // ←診断つき
+  setShare();
+  const y = document.getElementById("year"); if(y) y.textContent = new Date().getFullYear();
+  // 10分ごとに再取得
+  setInterval(fetchAndSum, 10*60*1000);
+})();
 </script>
